@@ -1,0 +1,327 @@
+// Prisma Schema pour EduPlatform (compatible SQLite)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./eduplatform.db"
+}
+
+// ============================================
+// AUTHENTIFICATION
+// ============================================
+
+model Compte {
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  motDePasse          String
+  role                String    // Was enum Role
+  estActif            Boolean   @default(false)
+  premiereConnexion   Boolean   @default(true)
+  dateCreation        DateTime  @default(now())
+  derniereConnexion   DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  directeur           Directeur?
+  formateur           Formateur?
+  etudiant            Etudiant?
+
+  @@index([email])
+  @@index([role])
+  @@index([estActif])
+}
+
+model Directeur {
+  id          Int      @id @default(autoincrement())
+  compteId    Int      @unique
+  nom         String
+  prenom      String
+  telephone   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  compte      Compte   @relation(fields: [compteId], references: [id], onDelete: Cascade)
+  evaluationsModifiees Evaluation[] @relation("ModificateurEvaluation")
+
+  @@index([compteId])
+}
+
+model Formateur {
+  id          Int      @id @default(autoincrement())
+  compteId    Int      @unique
+  nom         String
+  prenom      String
+  specialite  String?
+  grade       String?
+  departement String?
+  bureau      String?
+  telephone   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  compte              Compte                @relation(fields: [compteId], references: [id], onDelete: Cascade)
+  espacesPrincipaux   EspacePedagogique[]   @relation("FormateurPrincipal")
+  espacesSecondaires  FormateurSecondaire[]
+  travaux             Travail[]
+  evaluations         Evaluation[]          @relation("EvaluateurEvaluation")
+
+  @@index([compteId])
+}
+
+model Etudiant {
+  id                Int      @id @default(autoincrement())
+  compteId          Int      @unique
+  nom               String
+  prenom            String
+  matricule         String   @unique
+  promotionId       Int?
+  dateNaissance     DateTime?
+  genre             String?
+  telephone         String?
+  dateInscription   DateTime @default(now())
+  anneeInscription  Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  compte            Compte                  @relation(fields: [compteId], references: [id], onDelete: Cascade)
+  promotion         Promotion?              @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+  inscriptions      InscriptionEtudiant[]
+  affectations      AffectationIndividuelle[]
+  membresGroupes    MembreGroupe[]
+
+  @@index([compteId])
+  @@index([matricule])
+  @@index([promotionId])
+}
+
+// ============================================
+// ORGANISATION
+// ============================================
+
+model Promotion {
+  id              Int      @id @default(autoincrement())
+  nom             String
+  code            String   @unique
+  anneeAcademique Int
+  niveauEtudes    String?
+  dateDebut       DateTime
+  dateFin         DateTime
+  capaciteMax     Int?
+  description     String?
+  estActive       Boolean  @default(true)
+  dateCreation    DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  etudiants       Etudiant[]
+  espaces         EspacePedagogique[]
+
+  @@index([code])
+  @@index([estActive])
+}
+
+model Matiere {
+  id             Int      @id @default(autoincrement())
+  nom            String
+  code           String   @unique
+  description    String?
+  nombreCredits  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  espaces        EspacePedagogique[]
+
+  @@index([code])
+}
+
+// ============================================
+// PÉDAGOGIE
+// ============================================
+
+model EspacePedagogique {
+  id                  Int      @id @default(autoincrement())
+  nom                 String
+  promotionId         Int?
+  matiereId           Int?
+  formateurId         Int?
+  description         String?
+  semestre            Int?
+  volumeHoraireTotal  Int?
+  dateDebut           DateTime?
+  dateFin             DateTime?
+  estActif            Boolean  @default(true)
+  parametres          String?
+  dateCreation        DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  promotion           Promotion?              @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+  matiere             Matiere?                @relation(fields: [matiereId], references: [id], onDelete: SetNull)
+  formateur           Formateur?              @relation("FormateurPrincipal", fields: [formateurId], references: [id], onDelete: SetNull)
+  formateursSecondaires FormateurSecondaire[]
+  inscriptions        InscriptionEtudiant[]
+  travaux             Travail[]
+
+  @@unique([promotionId, matiereId])
+  @@index([promotionId])
+  @@index([matiereId])
+  @@index([formateurId])
+  @@index([estActif])
+}
+
+model FormateurSecondaire {
+  id                    Int      @id @default(autoincrement())
+  espacePedagogiqueId   Int
+  formateurId           Int
+  dateAjout             DateTime @default(now())
+  createdAt             DateTime @default(now())
+
+  espacePedagogique     EspacePedagogique @relation(fields: [espacePedagogiqueId], references: [id], onDelete: Cascade)
+  formateur             Formateur         @relation(fields: [formateurId], references: [id], onDelete: Cascade)
+
+  @@unique([espacePedagogiqueId, formateurId])
+  @@index([espacePedagogiqueId])
+  @@index([formateurId])
+}
+
+model InscriptionEtudiant {
+  id                    Int      @id @default(autoincrement())
+  espacePedagogiqueId   Int
+  etudiantId            Int
+  dateInscription       DateTime @default(now())
+  createdAt             DateTime @default(now())
+
+  espacePedagogique     EspacePedagogique @relation(fields: [espacePedagogiqueId], references: [id], onDelete: Cascade)
+  etudiant              Etudiant          @relation(fields: [etudiantId], references: [id], onDelete: Cascade)
+
+  @@unique([espacePedagogiqueId, etudiantId])
+  @@index([espacePedagogiqueId])
+  @@index([etudiantId])
+}
+
+// ============================================
+// TRAVAUX
+// ============================================
+
+model Travail {
+  id                    Int          @id @default(autoincrement())
+  espacePedagogiqueId   Int?
+  titre                 String
+  consignes             String
+  typeTravail           String       // Was enum TypeTravail
+  modeGroupe            String       @default("NON_APPLICABLE") // Was enum ModeGroupe
+  dateDebut             DateTime
+  dateFin               DateTime
+  fichierConsigneUrl    String?
+  estActif              Boolean      @default(true)
+  createurId            Int?
+  dateCreation          DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  espacePedagogique     EspacePedagogique?          @relation(fields: [espacePedagogiqueId], references: [id], onDelete: SetNull)
+  createur              Formateur?                  @relation(fields: [createurId], references: [id], onDelete: SetNull)
+  affectations          AffectationIndividuelle[]
+  groupes               GroupeEtudiant[]
+
+  @@index([espacePedagogiqueId])
+  @@index([createurId])
+  @@index([estActif])
+}
+
+model AffectationIndividuelle {
+  id              Int       @id @default(autoincrement())
+  travailId       Int?
+  etudiantId      Int?
+  dateAffectation DateTime  @default(now())
+  estSupprime     Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+
+  travail         Travail?  @relation(fields: [travailId], references: [id], onDelete: SetNull)
+  etudiant        Etudiant? @relation(fields: [etudiantId], references: [id], onDelete: SetNull)
+  livraisons      Livraison[]
+
+  @@index([travailId])
+  @@index([etudiantId])
+  @@index([estSupprime])
+}
+
+model GroupeEtudiant {
+  id              Int           @id @default(autoincrement())
+  travailId       Int?
+  nomGroupe       String
+  modeFormation   String       // Was enum ModeFormation
+  createurId      Int?
+  dateCreation    DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+
+  travail         Travail?      @relation(fields: [travailId], references: [id], onDelete: SetNull)
+  membres         MembreGroupe[]
+  livraisons      Livraison[]
+
+  @@index([travailId])
+}
+
+model MembreGroupe {
+  id          Int      @id @default(autoincrement())
+  groupeId    Int
+  etudiantId  Int
+  dateAjout   DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  groupe      GroupeEtudiant @relation(fields: [groupeId], references: [id], onDelete: Cascade)
+  etudiant    Etudiant       @relation(fields: [etudiantId], references: [id], onDelete: Cascade)
+
+  @@unique([groupeId, etudiantId])
+  @@index([groupeId])
+  @@index([etudiantId])
+}
+
+// ============================================
+// ÉVALUATION
+// ============================================
+
+model Livraison {
+  id              Int       @id @default(autoincrement())
+  affectationId   Int?
+  groupeId        Int?
+  contenu         String?
+  fichierUrl      String?
+  dateLivraison   DateTime  @default(now())
+  statut          String    @default("EN_COURS") // Was enum StatutLivraison
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  affectation     AffectationIndividuelle? @relation(fields: [affectationId], references: [id], onDelete: SetNull)
+  groupe          GroupeEtudiant?          @relation(fields: [groupeId], references: [id], onDelete: SetNull)
+  evaluations     Evaluation[]
+
+  @@index([affectationId])
+  @@index([groupeId])
+  @@index([statut])
+}
+
+model Evaluation {
+  id                  Int       @id @default(autoincrement())
+  livraisonId         Int?
+  note                Float
+  commentaire         String?
+  evaluateurId        Int?
+  dateEvaluation      DateTime  @default(now())
+  dateModification    DateTime?
+  modificateurId      Int?
+  raisonModification  String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  livraison           Livraison?  @relation(fields: [livraisonId], references: [id], onDelete: SetNull)
+  evaluateur          Formateur?  @relation("EvaluateurEvaluation", fields: [evaluateurId], references: [id], onDelete: SetNull)
+  modificateur        Directeur?  @relation("ModificateurEvaluation", fields: [modificateurId], references: [id], onDelete: SetNull)
+
+  @@index([livraisonId])
+  @@index([evaluateurId])
+  @@index([modificateurId])
+}
