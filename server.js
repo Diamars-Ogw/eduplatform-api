@@ -22,12 +22,24 @@ const PORT = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: [
-    'http://localhost:3000',           // Dev frontend
-    'http://localhost:5173',           // Dev Vite
-    'https://eduplatform-devsteams.vercel.app',  // ✅ Production Vercel
-    'https://devsteams.vercel.app',    // ✅ Ton domaine actuel
-  ],
+    const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL,  // Depuis la variable d'environnement
+].filter(Boolean); // Enlève les undefined
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Permet les requêtes sans origine (comme Postman, mobile apps)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('❌ Origine refusée:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
