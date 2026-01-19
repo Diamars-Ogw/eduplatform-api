@@ -22,7 +22,11 @@ const PORT = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: "http://localhost:3000", // Changez de 5173 à 3000
+    origin: [
+    'http://localhost:5173',
+    'http://eduplatform-devsteams.vercel.app',
+    'https://eduplatform.netlify.app'
+  ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
