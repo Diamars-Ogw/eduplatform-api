@@ -25,6 +25,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:5173',
   process.env.FRONTEND_URL,  // Depuis la variable d'environnement
+  /^https:\/\/eduplatform.*\.vercel\.app$/,
 ].filter(Boolean); // Enlève les undefined
 
 app.use(cors({
